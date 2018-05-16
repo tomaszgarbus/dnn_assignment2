@@ -1,5 +1,7 @@
-INPUT_SIZE = [256, 256]
+INPUT_SIZE = [128, 128]
 
-DOWNCONV_FILTERS = [(10, [5, 5]), (20, [5, 5])]
+NUM_LABELS = 66
 
-UPCONV_FILTERS = [(20, [5, 5]), (20, [5, 5]), (1, [5, 5])]
+DOWNCONV_FILTERS = [(10, [5, 5])]
+
+UPCONV_FILTERS = [(64, [5, 5]), (NUM_LABELS, [5, 5])]

@@ -1,17 +1,18 @@
 import tensorflow as tf
 from typing import Optional, List, Tuple
+from math import sqrt
+import numpy as np
 
 from loader import Loader
-from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS
+from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS
 
 FilterDesc = Tuple[int, List[int]]
 
 
-# TODO: proper weights initialization
 class UNet:
     loader: Loader = Loader()
-    mb_size: int = 10
-    learning_rate: float = 0.3
+    mb_size: int = 1
+    learning_rate: float = 0.03
     input_size: [int, int] = INPUT_SIZE
     downconv_filters: List[FilterDesc] = DOWNCONV_FILTERS
     upconv_filters: List[FilterDesc] = UPCONV_FILTERS
@@ -21,11 +22,13 @@ class UNet:
     upconv_layers = []
 
     def __init__(self,
+                 sess,
                  mb_size: Optional[int] = None,
                  learning_rate: Optional[float] = None,
                  input_size: Optional[List[int]] = None,
                  downconv_filters: Optional[List[FilterDesc]] = None,
                  upconv_filters: Optional[List[FilterDesc]] = None):
+        self.sess = sess
         if mb_size:
             self.mb_size = mb_size
         if learning_rate:
@@ -45,12 +48,17 @@ class UNet:
 
         for layer_no in range(len(self.downconv_filters)):
             filters_count, kernel_size = self.downconv_filters[layer_no]
+            # Weights initialization (std. dev = sqrt(2 / N))
+            cur_shape = tuple(map(int, signal.get_shape()))
+            inputs = cur_shape[1] * cur_shape[2] * cur_shape[3]
+            w_init = tf.initializers.random_normal(stddev=sqrt(2 / inputs))
             # Convolutional layer
             downconv_layer = tf.layers.conv2d(signal,
                                               filters=filters_count,
                                               kernel_size=kernel_size,
                                               padding='same',
                                               activation=tf.nn.relu,
+                                              kernel_initializer=w_init,
                                               use_bias=False)  # Bias not needed with batch normalization
             self.downconv_layers.append(downconv_layer)
             # Batch normalization layer
@@ -67,12 +75,17 @@ class UNet:
         signal = self.downpool_layers[-1]
         for layer_no in range(len(self.upconv_filters)):
             filters_count, kernel_size = self.upconv_filters[layer_no]
+            # Weights initialization (std. dev = sqrt(2 / N))
+            cur_shape = tuple(map(int, signal.get_shape()))
+            inputs = cur_shape[1] * cur_shape[2] * cur_shape[3]
+            w_init = tf.initializers.random_normal(stddev=sqrt(2 / inputs))
             # Convolutional layer
             upconv_layer = tf.layers.conv2d(signal,
                                             filters=filters_count,
                                             kernel_size=kernel_size,
                                             padding='same',
                                             activation=tf.nn.relu,
+                                            kernel_initializer=w_init,
                                             use_bias=False)
             # Batch normalization layer
             batch_norm = tf.layers.batch_normalization(upconv_layer)
@@ -97,19 +110,44 @@ class UNet:
         print(signal.get_shape())
 
     def _add_training_objectives(self):
-        self.loss = tf.reduce_mean(self.y - self.output)
-        self.train_op = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.loss)
+        self.loss = tf.reduce_mean(tf.losses.mean_squared_error(self.y, self.output))
+        self.preds = tf.argmax(self.output, axis=3)
+        self.labels = tf.argmax(self.y, axis=3)
+        self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.preds, self.labels), tf.float32))
+        self.train_op = tf.train.MomentumOptimizer(self.learning_rate, momentum=0.9).minimize(self.loss)
+
+    accs = []
+    def _train_on_batch(self):
+        batch_x, batch_y = self.loader.prepare_batch(self.mb_size)
+        loss, acc, op, self.outs, self.couts = self.sess.run([self.loss,
+                                                  self.accuracy,
+                                                  self.train_op,
+                                                  self.preds,
+                                                  self.labels],
+                      feed_dict={self.x: batch_x, self.y: batch_y})
+        self.accs.append(acc)
+        print(loss, acc, op, np.mean(self.accs))
 
     def _create_model(self):
         self.x = tf.placeholder(tf.float32, [self.mb_size] + self.input_size + [3])
-        self.y = tf.placeholder(tf.float32, [self.mb_size] + self.input_size + [1])
+        self.y = tf.placeholder(tf.float32, [self.mb_size] + self.input_size + [NUM_LABELS])
 
         self._add_downconv_layers()
         self._add_upconv_layers()
 
         self._add_training_objectives()
 
+        # Initialize variables.
+        tf.global_variables_initializer().run()
+
 
 if __name__ == '__main__':
-    net = UNet()
+    with tf.Session() as sess:
+        net = UNet(sess)
+        for i in range(1000):
+            print('{0}/{1}'.format(i, 1000))
+            net._train_on_batch()
+            if i % 100 == 0:
+                net.loader.show_image_or_labels(net.outs[0])
+                net.loader.show_image_or_labels(net.couts[0])
     pass
