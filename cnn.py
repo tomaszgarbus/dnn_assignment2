@@ -4,7 +4,6 @@ from math import sqrt
 import numpy as np
 import time
 import logging
-import os
 
 from loader import Loader
 from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE, MB_SIZE, SAVED_MODEL_PATH
@@ -173,8 +172,8 @@ class UNet:
                                 feed_dict={self.x: batch_x, self.y: batch_y})
         return results
 
-    def _test_on_batch(self, img_no_first, img_no_last):
-        batch_x, batch_y = self.loader.validation_batch(img_no_first, img_no_last)
+    def _test_on_batch(self, img_no_first, img_no_last, flip=None):
+        batch_x, batch_y = self.loader.validation_batch(img_no_first, img_no_last, flip)
         results = self.sess.run([self.loss, self.accuracy],
                                 feed_dict={self.x: batch_x, self.y: batch_y})
         return results
@@ -191,7 +190,7 @@ class UNet:
                 net.loader.show_image_or_labels(preds[0])
                 net.loader.show_image_or_labels(labels[0])
                 self.saver.save(self.sess, SAVED_MODEL_PATH)
-            if epoch_no and epoch_no % 18000 == 0:
+            if epoch_no and epoch_no % (18000 // self.mb_size) == 0:
                 self.validate()
             if epoch_no and epoch_no % self.lr_decay == 0:
                 self.learning_rate /= 2.
