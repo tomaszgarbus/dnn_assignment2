@@ -4,15 +4,19 @@ from math import sqrt
 import numpy as np
 
 from loader import Loader
-from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS
+from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE
 
 FilterDesc = Tuple[int, List[int]]
 
 
+# TODO: checkpoints
+# TODO: validation set
+# TODO: resizing back to original resolution after making predictions
 class UNet:
     loader: Loader = Loader()
     mb_size: int = 1
     learning_rate: float = 0.03
+    nb_epochs: int = 100000
     input_size: [int, int] = INPUT_SIZE
     downconv_filters: List[FilterDesc] = DOWNCONV_FILTERS
     upconv_filters: List[FilterDesc] = UPCONV_FILTERS
@@ -25,6 +29,7 @@ class UNet:
                  sess,
                  mb_size: Optional[int] = None,
                  learning_rate: Optional[float] = None,
+                 nb_epochs: Optional[int] = None,
                  input_size: Optional[List[int]] = None,
                  downconv_filters: Optional[List[FilterDesc]] = None,
                  upconv_filters: Optional[List[FilterDesc]] = None):
@@ -33,6 +38,8 @@ class UNet:
             self.mb_size = mb_size
         if learning_rate:
             self.learning_rate = learning_rate
+        if nb_epochs:
+            self.nb_epochs = nb_epochs
         if input_size:
             self.input_size = input_size
         if downconv_filters:
@@ -41,7 +48,6 @@ class UNet:
             self.upconv_filters = upconv_filters
 
         self._create_model()
-        pass
 
     def _add_downconv_layers(self):
         signal = self.x
@@ -116,18 +122,6 @@ class UNet:
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.preds, self.labels), tf.float32))
         self.train_op = tf.train.MomentumOptimizer(self.learning_rate, momentum=0.9).minimize(self.loss)
 
-    accs = []
-    def _train_on_batch(self):
-        batch_x, batch_y = self.loader.prepare_batch(self.mb_size)
-        loss, acc, op, self.outs, self.couts = self.sess.run([self.loss,
-                                                  self.accuracy,
-                                                  self.train_op,
-                                                  self.preds,
-                                                  self.labels],
-                      feed_dict={self.x: batch_x, self.y: batch_y})
-        self.accs.append(acc)
-        print(loss, acc, op, np.mean(self.accs))
-
     def _create_model(self):
         self.x = tf.placeholder(tf.float32, [self.mb_size] + self.input_size + [3])
         self.y = tf.placeholder(tf.float32, [self.mb_size] + self.input_size + [NUM_LABELS])
@@ -140,14 +134,46 @@ class UNet:
         # Initialize variables.
         tf.global_variables_initializer().run()
 
+    def _train_on_batch(self):
+        batch_x, batch_y = self.loader.prepare_batch(self.mb_size)
+        results = self.sess.run([self.loss,
+                                 self.accuracy,
+                                 self.train_op,
+                                 self.preds,
+                                 self.labels],
+                                feed_dict={self.x: batch_x, self.y: batch_y})
+        return results
+
+    def _test_on_batch(self, img_no_first, img_no_last):
+        batch_x, batch_y = self.loader.validation_batch(img_no_first, img_no_last)
+        results = self.sess.run([self.loss, self.accuracy],
+                                feed_dict={self.x: batch_x, self.y:batch_y})
+        return results
+
+    def train(self):
+        accs = []
+        for epoch_no in range(self.nb_epochs):
+            loss, acc, _, preds, labels = self._train_on_batch()
+            accs.append(acc)
+            if epoch_no % 100 == 0:
+                print('epoch {0}/{1}: loss: {2}, acc: {3}, mean_acc: {4}'
+                      .format(epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
+            if epoch_no % 1000 == 0 or epoch_no == self.nb_epochs - 1:
+                net.loader.show_image_or_labels(preds[0])
+                net.loader.show_image_or_labels(labels[0])
+            if epoch_no and epoch_no % 18000 == 0:
+                self.validate()
+
+    def validate(self):
+        accs = []
+        for i in range(VAL_SIZE):
+            loss, acc = self._test_on_batch(i, i)
+            accs.append(acc)
+        print("Validation accuracy: {0}".format(np.mean(accs)))
+
 
 if __name__ == '__main__':
     with tf.Session() as sess:
         net = UNet(sess)
-        for i in range(1000):
-            print('{0}/{1}'.format(i, 1000))
-            net._train_on_batch()
-            if i % 100 == 0:
-                net.loader.show_image_or_labels(net.outs[0])
-                net.loader.show_image_or_labels(net.couts[0])
+        net.train()
     pass

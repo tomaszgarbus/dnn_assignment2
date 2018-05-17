@@ -4,16 +4,20 @@ import os
 import random
 import matplotlib.pyplot as plt
 
-from constants import INPUT_SIZE, NUM_LABELS
+from constants import INPUT_SIZE, NUM_LABELS, VAL_SIZE
 
 
 class Loader:
-    img_names = []
+    train_img_names = []
+    val_img_names = []
 
     def __init__(self):
-        self.img_names = sorted(list(os.walk('assignment2/training/images'))[0][2])
-        self.img_names = list(map(lambda s: s[:-4], self.img_names))
-        pass
+        self.train_img_names = sorted(list(os.walk('assignment2/training/images'))[0][2])
+        self.train_img_names = list(map(lambda s: s[:-4], self.train_img_names))
+
+        # Extract validation set.
+        self.val_img_names = self.train_img_names[-VAL_SIZE:]
+        self.train_img_names = self.train_img_names[:-VAL_SIZE]
 
     @staticmethod
     def load_img_by_name(name, dir='training'):
@@ -38,7 +42,11 @@ class Loader:
         return np.array(tmp)
 
     def load_random_img_and_label(self):
-        name = random.choice(self.img_names)
+        name = random.choice(self.train_img_names)
+        return self.load_img_by_name(name), self.load_labels_by_name(name)
+
+    def load_val_img_and_label(self, img_no):
+        name = self.val_img_names[img_no]
         return self.load_img_by_name(name), self.load_labels_by_name(name)
 
     @staticmethod
@@ -69,6 +77,20 @@ class Loader:
         y = np.array(y)
         return x, y
 
+    def validation_batch(self, img_no_first, img_no_last):
+        x = []
+        y = []
+        for img_no in range(img_no_first, img_no_last + 1):
+            img, labels = self.load_val_img_and_label(img_no)
+            img = self.resize_img(img)
+            labels = self.resize_labels(labels)
+            img = img / 255
+            labels = self.labels_to_one_hot(labels)
+            x.append(img)
+            y.append(labels)
+        x = np.array(x)
+        y = np.array(y)
+        return x, y
 
 if __name__ == '__main__':
     loader = Loader()
