@@ -2,9 +2,10 @@ from PIL import Image
 import numpy as np
 import os
 import random
-import matplotlib.pyplot as plt
 
-from constants import INPUT_SIZE, NUM_LABELS, VAL_SIZE
+from constants import INPUT_SIZE, NUM_LABELS, VAL_SIZE, SYLVESTER
+if not SYLVESTER:
+    import matplotlib.pyplot as plt
 
 
 class Loader:
@@ -51,8 +52,9 @@ class Loader:
 
     @staticmethod
     def show_image_or_labels(iol) -> None:
-        plt.imshow(iol)
-        plt.show()
+        if not SYLVESTER:
+            plt.imshow(iol)
+            plt.show()
 
     @staticmethod
     def labels_to_one_hot(labels):
