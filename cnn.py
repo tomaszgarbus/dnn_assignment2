@@ -18,6 +18,7 @@ class UNet:
     loader: Loader = Loader()
     mb_size: int = 1
     learning_rate: float = 0.3
+    lr_decay: int = 10000
     nb_epochs: int = 100000
     input_size: [int, int] = INPUT_SIZE
     downconv_filters: List[FilterDesc] = DOWNCONV_FILTERS
@@ -31,6 +32,7 @@ class UNet:
                  sess,
                  mb_size: Optional[int] = None,
                  learning_rate: Optional[float] = None,
+                 lr_decay: Optional[int] = None,
                  nb_epochs: Optional[int] = None,
                  input_size: Optional[List[int]] = None,
                  downconv_filters: Optional[List[FilterDesc]] = None,
@@ -40,6 +42,8 @@ class UNet:
             self.mb_size = mb_size
         if learning_rate:
             self.learning_rate = learning_rate
+        if lr_decay:
+            self.lr_decay = lr_decay
         if nb_epochs:
             self.nb_epochs = nb_epochs
         if input_size:
@@ -165,6 +169,8 @@ class UNet:
                 net.loader.show_image_or_labels(labels[0])
             if epoch_no and epoch_no % 18000 == 0:
                 self.validate()
+            if epoch_no and epoch_no % self.lr_decay == 0:
+                self.learning_rate /= 2.
 
     def validate(self):
         accs = []
