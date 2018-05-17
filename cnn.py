@@ -10,19 +10,18 @@ from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, 
 FilterDesc = Tuple[int, List[int]]
 
 
-# TODO: lr_decay
 # TODO: data augmentation (horizontal flips: done)
 # TODO: checkpoints
 # TODO: resizing back to original resolution after making predictions
 class UNet:
     loader: Loader = Loader()
-    mb_size: int = 1
-    learning_rate: float = 0.3
-    lr_decay: int = 10000
-    nb_epochs: int = 100000
-    input_size: [int, int] = INPUT_SIZE
-    downconv_filters: List[FilterDesc] = DOWNCONV_FILTERS
-    upconv_filters: List[FilterDesc] = UPCONV_FILTERS
+    mb_size = 1
+    learning_rate = 0.3
+    lr_decay = 10000
+    nb_epochs = 100000
+    input_size = INPUT_SIZE
+    downconv_filters = DOWNCONV_FILTERS
+    upconv_filters = UPCONV_FILTERS
 
     downconv_layers = []
     downpool_layers = []
