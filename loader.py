@@ -62,35 +62,51 @@ class Loader:
                 onehot[x][y][labels[x][y]] = 1
         return onehot
 
+    @staticmethod
+    def flip_img_or_labels(iol):
+        for x in range(INPUT_SIZE[0]):
+            for y in range(INPUT_SIZE[1] // 2):
+                iol[x][y], iol[x][INPUT_SIZE[1]-1-y] =\
+                    iol[x][INPUT_SIZE[1]-1-y], iol[x][y]
+        return iol
+
+    def _preprocess_img_and_labels(self, img, labels, flip=None):
+        img = self.resize_img(img)
+        labels = self.resize_labels(labels)
+
+        # Apply horizontal flip to half of images
+        if flip or (flip is None and random.getrandbits(1)):
+            img = self.flip_img_or_labels(img)
+            labels = self.flip_img_or_labels(labels)
+
+        img = img / 255
+        labels = self.labels_to_one_hot(labels)
+        return img, labels
+
     def prepare_batch(self, size):
         x = []
         y = []
-        for i in range(size):
+        for img_no in range(size):
             img, labels = self.load_random_img_and_label()
-            img = self.resize_img(img)
-            labels = self.resize_labels(labels)
-            img = img / 255
-            labels = self.labels_to_one_hot(labels)
+            img, labels = self._preprocess_img_and_labels(img, labels)
             x.append(img)
             y.append(labels)
         x = np.array(x)
         y = np.array(y)
         return x, y
 
-    def validation_batch(self, img_no_first, img_no_last):
+    def validation_batch(self, img_no_first, img_no_last, flip=None):
         x = []
         y = []
         for img_no in range(img_no_first, img_no_last + 1):
             img, labels = self.load_val_img_and_label(img_no)
-            img = self.resize_img(img)
-            labels = self.resize_labels(labels)
-            img = img / 255
-            labels = self.labels_to_one_hot(labels)
+            img, labels = self._preprocess_img_and_labels(img, labels, flip=flip)
             x.append(img)
             y.append(labels)
         x = np.array(x)
         y = np.array(y)
         return x, y
+
 
 if __name__ == '__main__':
     loader = Loader()

@@ -2,6 +2,7 @@ import tensorflow as tf
 from typing import Optional, List, Tuple
 from math import sqrt
 import numpy as np
+import time
 
 from loader import Loader
 from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE
@@ -9,13 +10,14 @@ from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, 
 FilterDesc = Tuple[int, List[int]]
 
 
+# TODO: lr_decay
+# TODO: data augmentation (horizontal flips: done)
 # TODO: checkpoints
-# TODO: validation set
 # TODO: resizing back to original resolution after making predictions
 class UNet:
     loader: Loader = Loader()
     mb_size: int = 1
-    learning_rate: float = 0.03
+    learning_rate: float = 0.3
     nb_epochs: int = 100000
     input_size: [int, int] = INPUT_SIZE
     downconv_filters: List[FilterDesc] = DOWNCONV_FILTERS
@@ -147,7 +149,7 @@ class UNet:
     def _test_on_batch(self, img_no_first, img_no_last):
         batch_x, batch_y = self.loader.validation_batch(img_no_first, img_no_last)
         results = self.sess.run([self.loss, self.accuracy],
-                                feed_dict={self.x: batch_x, self.y:batch_y})
+                                feed_dict={self.x: batch_x, self.y: batch_y})
         return results
 
     def train(self):
@@ -156,8 +158,8 @@ class UNet:
             loss, acc, _, preds, labels = self._train_on_batch()
             accs.append(acc)
             if epoch_no % 100 == 0:
-                print('epoch {0}/{1}: loss: {2}, acc: {3}, mean_acc: {4}'
-                      .format(epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
+                print('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'
+                      .format(time.ctime(), epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
             if epoch_no % 1000 == 0 or epoch_no == self.nb_epochs - 1:
                 net.loader.show_image_or_labels(preds[0])
                 net.loader.show_image_or_labels(labels[0])
@@ -167,8 +169,9 @@ class UNet:
     def validate(self):
         accs = []
         for i in range(VAL_SIZE):
-            loss, acc = self._test_on_batch(i, i)
-            accs.append(acc)
+            for flip in [False, True]:
+                loss, acc = self._test_on_batch(i, i, flip=flip)
+                accs.append(acc)
         print("Validation accuracy: {0}".format(np.mean(accs)))
 
 
