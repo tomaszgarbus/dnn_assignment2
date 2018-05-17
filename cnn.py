@@ -18,7 +18,7 @@ class UNet:
     loader: Loader = Loader()
     mb_size = 1
     learning_rate = 0.3
-    lr_decay = 5000
+    lr_decay = 8000
     nb_epochs = 100000
     input_size = INPUT_SIZE
     downconv_filters = DOWNCONV_FILTERS

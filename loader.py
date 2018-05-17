@@ -15,6 +15,7 @@ class Loader:
     def __init__(self):
         self.train_img_names = sorted(list(os.walk('assignment2/training/images'))[0][2])
         self.train_img_names = list(map(lambda s: s[:-4], self.train_img_names))
+        self.train_img_names = list(filter(lambda x: x[0] != '.', self.train_img_names))
 
         # Extract validation set.
         self.val_img_names = self.train_img_names[-VAL_SIZE:]
