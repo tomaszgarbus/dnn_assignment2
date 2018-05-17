@@ -4,9 +4,10 @@ from math import sqrt
 import numpy as np
 import time
 import logging
+import os
 
 from loader import Loader
-from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE
+from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE, MB_SIZE, SAVED_MODEL_PATH
 
 FilterDesc = Tuple[int, List[int]]
 
@@ -15,8 +16,8 @@ FilterDesc = Tuple[int, List[int]]
 # TODO: checkpoints
 # TODO: resizing back to original resolution after making predictions
 class UNet:
-    loader: Loader = Loader()
-    mb_size = 1
+    loader = Loader()
+    mb_size = MB_SIZE
     learning_rate = 0.3
     lr_decay = 8000
     nb_epochs = 100000
@@ -154,8 +155,13 @@ class UNet:
 
         self._add_training_objectives()
 
-        # Initialize variables.
-        tf.global_variables_initializer().run()
+        # Restore model if possible
+        self.saver = tf.train.Saver()
+        try:
+            self.saver.restore(self.sess, SAVED_MODEL_PATH)
+        except tf.errors.InvalidArgumentError:
+            # Initialize variables.
+            tf.global_variables_initializer().run()
 
     def _train_on_batch(self):
         batch_x, batch_y = self.loader.prepare_batch(self.mb_size)
@@ -179,11 +185,12 @@ class UNet:
             loss, acc, _, preds, labels = self._train_on_batch()
             accs.append(acc)
             if epoch_no % 100 == 0:
-                self.logger.info('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'
-                      .format(time.ctime(), epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
+                self.logger.info('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'.
+                                 format(time.ctime(), epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
             if epoch_no % 1000 == 0 or epoch_no == self.nb_epochs - 1:
                 net.loader.show_image_or_labels(preds[0])
                 net.loader.show_image_or_labels(labels[0])
+                self.saver.save(self.sess, SAVED_MODEL_PATH)
             if epoch_no and epoch_no % 18000 == 0:
                 self.validate()
             if epoch_no and epoch_no % self.lr_decay == 0:
@@ -193,7 +200,7 @@ class UNet:
         accs = []
         for i in range(VAL_SIZE):
             for flip in [False, True]:
-                loss, acc = self._test_on_batch(i, i, flip=flip)
+                loss, acc = self._test_on_batch(i, i + MB_SIZE - 1, flip=flip)
                 accs.append(acc)
         self.logger.info("Validation accuracy: {0}".format(np.mean(accs)))
 

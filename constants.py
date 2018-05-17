@@ -9,3 +9,7 @@ UPCONV_FILTERS = [(64, [5, 5]), (64, [5, 5]), (64, [5, 5]), (64, [5, 5]), (NUM_L
 VAL_SIZE = 1800
 
 SYLVESTER = False
+
+MB_SIZE = 4
+
+SAVED_MODEL_PATH = 'tmp/model.ckpt'
