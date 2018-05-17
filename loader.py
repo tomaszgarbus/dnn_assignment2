@@ -67,7 +67,7 @@ class Loader:
         for x in range(INPUT_SIZE[0]):
             for y in range(INPUT_SIZE[1] // 2):
                 iol[x][y], iol[x][INPUT_SIZE[1]-1-y] =\
-                    iol[x][INPUT_SIZE[1]-1-y], iol[x][y]
+                    np.copy(iol[x][INPUT_SIZE[1]-1-y]), np.copy(iol[x][y])
         return iol
 
     def _preprocess_img_and_labels(self, img, labels, flip=None):
