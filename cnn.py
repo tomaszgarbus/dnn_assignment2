@@ -71,6 +71,9 @@ class UNet:
 
     def _add_downconv_layers(self):
         signal = self.x
+        # Initial normalization
+        mean, variance = tf.nn.moments(signal, axes=[0, 1, 2, 3])
+        signal = (signal - mean) / tf.sqrt(variance)
 
         for layer_no in range(len(self.downconv_filters)):
             filters_count, kernel_size = self.downconv_filters[layer_no]
