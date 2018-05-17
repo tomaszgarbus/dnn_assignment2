@@ -3,6 +3,7 @@ from typing import Optional, List, Tuple
 from math import sqrt
 import numpy as np
 import time
+import logging
 
 from loader import Loader
 from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE
@@ -17,7 +18,7 @@ class UNet:
     loader: Loader = Loader()
     mb_size = 1
     learning_rate = 0.3
-    lr_decay = 10000
+    lr_decay = 5000
     nb_epochs = 100000
     input_size = INPUT_SIZE
     downconv_filters = DOWNCONV_FILTERS
@@ -51,6 +52,20 @@ class UNet:
             self.downconv_filters = downconv_filters
         if upconv_filters:
             self.upconv_filters = upconv_filters
+
+        # Initialize logging.
+        self.logger = logging.Logger("main_logger", level=logging.INFO)
+        log_file = 'log' + str(time.ctime()) + '.txt'
+        formatter = logging.Formatter(
+            fmt='{message}',
+            style='{'
+        )
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(console_handler)
+        self.logger.addHandler(file_handler)
 
         self._create_model()
 
@@ -110,7 +125,7 @@ class UNet:
             if layer_no < len(self.downconv_layers):
                 cur_shape = tuple(map(int, upconv_layer.get_shape()))
                 new_shape = (cur_shape[0], cur_shape[1] * 2, cur_shape[2] * 2, cur_shape[3])
-                print(cur_shape, new_shape)
+                self.logger.info((cur_shape, new_shape))
                 uppooling_layer = tf.image.resize_nearest_neighbor(images=upconv_layer,
                                                                    size=new_shape[1:3])
                 signal = uppooling_layer
@@ -118,7 +133,7 @@ class UNet:
                 signal = upconv_layer
 
         self.output = signal
-        print(signal.get_shape())
+        self.logger.info(signal.get_shape())
 
     def _add_training_objectives(self):
         self.loss = tf.reduce_mean(tf.losses.mean_squared_error(self.y, self.output))
@@ -161,7 +176,7 @@ class UNet:
             loss, acc, _, preds, labels = self._train_on_batch()
             accs.append(acc)
             if epoch_no % 100 == 0:
-                print('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'
+                self.logger.info('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'
                       .format(time.ctime(), epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
             if epoch_no % 1000 == 0 or epoch_no == self.nb_epochs - 1:
                 net.loader.show_image_or_labels(preds[0])
@@ -177,7 +192,7 @@ class UNet:
             for flip in [False, True]:
                 loss, acc = self._test_on_batch(i, i, flip=flip)
                 accs.append(acc)
-        print("Validation accuracy: {0}".format(np.mean(accs)))
+        self.logger.info("Validation accuracy: {0}".format(np.mean(accs)))
 
 
 if __name__ == '__main__':
