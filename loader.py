@@ -23,25 +23,37 @@ class Loader:
 
     @staticmethod
     def load_img_by_name(name, dir='training'):
-        img = Image.open('assignment2/{0}/images/{1}.jpg'.format(dir, name))
+        if os.path.isfile('assignment2_resized/{0}/images/{1}.jpg'.format(dir, name)):
+            img = Image.open('assignment2_resized/{0}/images/{1}.jpg'.format(dir, name))
+        else:
+            img = Image.open('assignment2/{0}/images/{1}.jpg'.format(dir, name))
         return np.array(img)
 
     @staticmethod
     def load_labels_by_name(name):
-        img = Image.open('assignment2/training/labels_plain/{0}.png'.format(name))
+        if os.path.isfile('assignment2_resized/training/labels_plain/{0}.png'.format(name)):
+            img = Image.open('assignment2_resized/training/labels_plain/{0}.png'.format(name))
+        else:
+            img = Image.open('assignment2/training/labels_plain/{0}.png'.format(name))
         return np.array(img)
 
     @staticmethod
     def resize_img(img):
-        tmp = Image.fromarray(img, mode='RGB')
-        tmp = tmp.resize(INPUT_SIZE)
-        return np.array(tmp)
+        if img.shape[:2] != tuple(INPUT_SIZE):
+            tmp = Image.fromarray(img, mode='RGB')
+            tmp = tmp.resize(INPUT_SIZE)
+            return np.array(tmp)
+        else:
+            return img
 
     @staticmethod
     def resize_labels(labels):
-        tmp = Image.fromarray(labels, mode='L')
-        tmp = tmp.resize(INPUT_SIZE)
-        return np.array(tmp)
+        if labels.shape[:2] != tuple(INPUT_SIZE):
+            tmp = Image.fromarray(labels, mode='L')
+            tmp = tmp.resize(INPUT_SIZE)
+            return np.array(tmp)
+        else:
+            return labels
 
     def load_random_img_and_label(self):
         name = random.choice(self.train_img_names)

@@ -8,7 +8,7 @@ import logging
 from loader import Loader
 from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE, MB_SIZE, SAVED_MODEL_PATH
 
-FilterDesc = Tuple[int, List[int]]
+FilterDesc = Tuple[int, List[int], int]
 
 
 # TODO: data augmentation (horizontal flips: done)
@@ -76,24 +76,26 @@ class UNet:
         signal = (signal - mean) / tf.sqrt(variance)
 
         for layer_no in range(len(self.downconv_filters)):
-            filters_count, kernel_size = self.downconv_filters[layer_no]
-            # Weights initialization (std. dev = sqrt(2 / N))
-            cur_shape = tuple(map(int, signal.get_shape()))
-            inputs = cur_shape[1] * cur_shape[2] * cur_shape[3]
-            w_init = tf.initializers.random_normal(stddev=sqrt(2 / inputs))
-            # Convolutional layer
-            downconv_layer = tf.layers.conv2d(signal,
-                                              filters=filters_count,
-                                              kernel_size=kernel_size,
-                                              padding='same',
-                                              activation=tf.nn.relu,
-                                              kernel_initializer=w_init,
-                                              use_bias=False)  # Bias not needed with batch normalization
+            filters_count, kernel_size, layers_repeat = self.downconv_filters[layer_no]
+            for count in range(layers_repeat):
+                # Weights initialization (std. dev = sqrt(2 / N))
+                cur_shape = tuple(map(int, signal.get_shape()))
+                inputs = cur_shape[1] * cur_shape[2] * cur_shape[3]
+                w_init = tf.initializers.random_normal(stddev=sqrt(2 / inputs))
+                # Convolutional layer
+                downconv_layer = tf.layers.conv2d(signal,
+                                                  filters=filters_count,
+                                                  kernel_size=kernel_size,
+                                                  padding='same',
+                                                  activation=tf.nn.relu,
+                                                  kernel_initializer=w_init,
+                                                  use_bias=False)  # Bias not needed with batch normalization
+                # Batch normalization layer
+                batch_norm = tf.layers.batch_normalization(downconv_layer)
+                signal = batch_norm
             self.downconv_layers.append(downconv_layer)
-            # Batch normalization layer
-            batch_norm = tf.layers.batch_normalization(downconv_layer)
             # Downpooling layer
-            downpooling_layer = tf.layers.max_pooling2d(batch_norm,
+            downpooling_layer = tf.layers.max_pooling2d(signal,
                                                         pool_size=[2, 2],
                                                         strides=[2, 2],
                                                         padding='same')
@@ -103,21 +105,24 @@ class UNet:
     def _add_upconv_layers(self):
         signal = self.downpool_layers[-1]
         for layer_no in range(len(self.upconv_filters)):
-            filters_count, kernel_size = self.upconv_filters[layer_no]
-            # Weights initialization (std. dev = sqrt(2 / N))
-            cur_shape = tuple(map(int, signal.get_shape()))
-            inputs = cur_shape[1] * cur_shape[2] * cur_shape[3]
-            w_init = tf.initializers.random_normal(stddev=sqrt(2 / inputs))
-            # Convolutional layer
-            upconv_layer = tf.layers.conv2d(signal,
-                                            filters=filters_count,
-                                            kernel_size=kernel_size,
-                                            padding='same',
-                                            activation=tf.nn.relu,
-                                            kernel_initializer=w_init,
-                                            use_bias=False)
-            # Batch normalization layer
-            batch_norm = tf.layers.batch_normalization(upconv_layer)
+            filters_count, kernel_size, layer_repeat = self.upconv_filters[layer_no]
+            for count in range(layer_repeat):
+                # Weights initialization (std. dev = sqrt(2 / N))
+                cur_shape = tuple(map(int, signal.get_shape()))
+                inputs = cur_shape[1] * cur_shape[2] * cur_shape[3]
+                w_init = tf.initializers.random_normal(stddev=sqrt(2 / inputs))
+                # Convolutional layer
+                upconv_layer = tf.layers.conv2d(signal,
+                                                filters=filters_count,
+                                                kernel_size=kernel_size,
+                                                padding='same',
+                                                activation=tf.nn.relu,
+                                                kernel_initializer=w_init,
+                                                use_bias=False)
+                # Batch normalization layer
+                batch_norm = tf.layers.batch_normalization(upconv_layer)
+                signal = batch_norm
+            self.upconv_layers.append(upconv_layer)
             # Concatenate with respective downconv
             if layer_no and layer_no < len(self.downconv_layers):
                 upconv_concat = tf.concat([batch_norm, self.downconv_layers[-layer_no]], axis=3)
@@ -197,9 +202,9 @@ class UNet:
 
     def validate(self):
         accs = []
-        for i in range(VAL_SIZE):
+        for i in range(VAL_SIZE // MB_SIZE):
             for flip in [False, True]:
-                loss, acc = self._test_on_batch(i, i + MB_SIZE - 1, flip=flip)
+                loss, acc = self._test_on_batch(i * MB_SIZE, (i+1) * MB_SIZE - 1, flip=flip)
                 accs.append(acc)
         self.logger.info("Validation accuracy: {0}".format(np.mean(accs)))
 
