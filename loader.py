@@ -11,6 +11,8 @@ if not SYLVESTER:
 class Loader:
     train_img_names = []
     val_img_names = []
+    train_img_cache = {}
+    train_labels_cache = {}
 
     def __init__(self):
         self.train_img_names = sorted(list(os.walk('assignment2/training/images'))[0][2])
@@ -21,20 +23,24 @@ class Loader:
         self.val_img_names = self.train_img_names[-VAL_SIZE:]
         self.train_img_names = self.train_img_names[:-VAL_SIZE]
 
-    @staticmethod
-    def load_img_by_name(name, dir='training'):
-        if os.path.isfile('assignment2_resized/{0}/images/{1}.jpg'.format(dir, name)):
-            img = Image.open('assignment2_resized/{0}/images/{1}.jpg'.format(dir, name))
+    def load_img_by_name(self, name, dir='training', force_full_size=True):
+        if not force_full_size and name in self.train_img_cache:
+            img = self.train_img_cache[name]
         else:
             img = Image.open('assignment2/{0}/images/{1}.jpg'.format(dir, name))
+            if not force_full_size:
+                img = img.resize(INPUT_SIZE)
+                self.train_img_cache[name] = img
         return np.array(img)
 
-    @staticmethod
-    def load_labels_by_name(name):
-        if os.path.isfile('assignment2_resized/training/labels_plain/{0}.png'.format(name)):
-            img = Image.open('assignment2_resized/training/labels_plain/{0}.png'.format(name))
+    def load_labels_by_name(self, name, force_full_size=True):
+        if not force_full_size and name in self.train_labels_cache:
+            img = self.train_labels_cache[name]
         else:
             img = Image.open('assignment2/training/labels_plain/{0}.png'.format(name))
+            if not force_full_size:
+                img = img.resize(INPUT_SIZE)
+                self.train_labels_cache[name] = img
         return np.array(img)
 
     @staticmethod
@@ -49,13 +55,16 @@ class Loader:
         tmp = tmp.resize(size, resample=Image.NEAREST)
         return np.array(tmp)
 
-    def load_random_img_and_label(self):
+    def load_random_img_and_label(self, force_full_size=True):
         name = random.choice(self.train_img_names)
-        return self.load_img_by_name(name), self.load_labels_by_name(name)
+        return self.load_img_by_name(name, force_full_size=force_full_size),\
+            self.load_labels_by_name(name, force_full_size=force_full_size),\
+            name
 
-    def load_val_img_and_label(self, img_no):
+    def load_val_img_and_label(self, img_no, force_full_size=True):
         name = self.val_img_names[img_no]
-        return self.load_img_by_name(name), self.load_labels_by_name(name)
+        return self.load_img_by_name(name, force_full_size=force_full_size),\
+            self.load_labels_by_name(name, force_full_size=force_full_size)
 
     @staticmethod
     def show_image_or_labels(iol) -> None:
@@ -100,7 +109,7 @@ class Loader:
         x = []
         y = []
         for img_no in range(size):
-            img, labels = self.load_random_img_and_label()
+            img, labels, name = self.load_random_img_and_label(force_full_size=False)
             img, labels = self._preprocess_img_and_labels(img, labels)
             x.append(img)
             y.append(labels)
