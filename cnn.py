@@ -4,6 +4,7 @@ from math import sqrt
 import numpy as np
 import time
 import logging
+from PIL import Image
 
 from loader import Loader
 from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE, MB_SIZE, SAVED_MODEL_PATH
@@ -11,6 +12,7 @@ from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, 
 FilterDesc = Tuple[int, List[int], int]
 
 
+# TODO: check if PIL uses GPU
 # TODO: data augmentation (horizontal flips: done)
 # TODO: checkpoints
 # TODO: resizing back to original resolution after making predictions
@@ -178,10 +180,22 @@ class UNet:
         return results
 
     def _test_on_batch(self, img_no_first, img_no_last, flip=None):
-        batch_x, batch_y = self.loader.validation_batch(img_no_first, img_no_last, flip)
-        results = self.sess.run([self.loss, self.accuracy],
+        batch_x, batch_y, orig_size_labels = self.loader.validation_batch(img_no_first, img_no_last, flip)
+        results = self.sess.run([self.loss, self.accuracy, self.preds],
                                 feed_dict={self.x: batch_x, self.y: batch_y})
-        return results
+        # Calculate accuracy on original sizes.
+        preds = results[2]
+        full_size_acc = 0.
+        for i in range(self.mb_size):
+            orig_size_preds = Loader.resize_labels(preds[i].astype(np.int8), orig_size_labels[i].shape[::-1])
+            Loader.show_image_or_labels(preds[i])
+            Loader.show_image_or_labels(orig_size_preds)
+            Loader.show_image_or_labels(orig_size_labels[i])
+            acc = np.mean((np.equal(orig_size_preds, orig_size_labels[i])).astype(np.float32))
+            full_size_acc += acc
+        full_size_acc /= self.mb_size
+        print(results[1], full_size_acc)
+        return [results[0], results[1], full_size_acc]
 
     def train(self):
         accs = []
@@ -189,6 +203,7 @@ class UNet:
             loss, acc, _, preds, labels = self._train_on_batch()
             accs.append(acc)
             if epoch_no % 100 == 0:
+                self.validate()
                 self.logger.info('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'.
                                  format(time.ctime(), epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
             if epoch_no % 1000 == 0 or epoch_no == self.nb_epochs - 1:
@@ -204,8 +219,8 @@ class UNet:
         accs = []
         for i in range(VAL_SIZE // MB_SIZE):
             for flip in [False, True]:
-                loss, acc = self._test_on_batch(i * MB_SIZE, (i+1) * MB_SIZE - 1, flip=flip)
-                accs.append(acc)
+                loss, acc, full_size_acc = self._test_on_batch(i * MB_SIZE, (i+1) * MB_SIZE - 1, flip=flip)
+                accs.append(full_size_acc)
         self.logger.info("Validation accuracy: {0}".format(np.mean(accs)))
 
 

@@ -1,4 +1,4 @@
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 import os
 import random
@@ -44,22 +44,16 @@ class Loader:
         return np.array(img)
 
     @staticmethod
-    def resize_img(img):
-        if img.shape[:2] != tuple(INPUT_SIZE):
-            tmp = Image.fromarray(img, mode='RGB')
-            tmp = tmp.resize(INPUT_SIZE)
-            return np.array(tmp)
-        else:
-            return img
+    def resize_img(img, size=INPUT_SIZE):
+        tmp = Image.fromarray(img, mode='RGB')
+        tmp = tmp.resize(size, resample=Image.NEAREST)
+        return np.array(tmp)
 
     @staticmethod
-    def resize_labels(labels):
-        if labels.shape[:2] != tuple(INPUT_SIZE):
-            tmp = Image.fromarray(labels, mode='L')
-            tmp = tmp.resize(INPUT_SIZE)
-            return np.array(tmp)
-        else:
-            return labels
+    def resize_labels(labels, size=INPUT_SIZE):
+        tmp = Image.fromarray(labels, mode='L')
+        tmp = tmp.resize(size, resample=Image.NEAREST)
+        return np.array(tmp)
 
     def load_random_img_and_label(self, force_full_size=True):
         name = random.choice(self.train_img_names)
@@ -87,12 +81,16 @@ class Loader:
         return onehot
 
     @staticmethod
-    def flip_img_or_labels(iol):
-        for x in range(INPUT_SIZE[0]):
-            for y in range(INPUT_SIZE[1] // 2):
-                iol[x][y], iol[x][INPUT_SIZE[1]-1-y] =\
-                    np.copy(iol[x][INPUT_SIZE[1]-1-y]), np.copy(iol[x][y])
-        return iol
+    def flip_img(img):
+        tmp = Image.fromarray(img, mode='RGB')
+        tmp = ImageOps.mirror(tmp)
+        return np.array(tmp)
+
+    @staticmethod
+    def flip_labels(img):
+        tmp = Image.fromarray(img, mode='L')
+        tmp = ImageOps.mirror(tmp)
+        return np.array(tmp)
 
     def _preprocess_img_and_labels(self, img, labels, flip=None):
         img = self.resize_img(img)
@@ -100,8 +98,8 @@ class Loader:
 
         # Apply horizontal flip to half of images
         if flip or (flip is None and random.getrandbits(1)):
-            img = self.flip_img_or_labels(img)
-            labels = self.flip_img_or_labels(labels)
+            img = self.flip_img(img)
+            labels = self.flip_labels(labels)
 
         img = img / 255
         labels = self.labels_to_one_hot(labels)
@@ -122,14 +120,19 @@ class Loader:
     def validation_batch(self, img_no_first, img_no_last, flip=None):
         x = []
         y = []
+        orig_size = []
         for img_no in range(img_no_first, img_no_last + 1):
-            img, labels = self.load_val_img_and_label(img_no)
-            img, labels = self._preprocess_img_and_labels(img, labels, flip=flip)
+            img, orig_labels = self.load_val_img_and_label(img_no)
+            img, labels = self._preprocess_img_and_labels(img, orig_labels, flip=flip)
+            if flip:
+                print("flippin")
+                orig_labels = self.flip_labels(orig_labels)
             x.append(img)
             y.append(labels)
+            orig_size.append(orig_labels)
         x = np.array(x)
         y = np.array(y)
-        return x, y
+        return x, y, orig_size
 
 
 if __name__ == '__main__':
