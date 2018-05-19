@@ -125,7 +125,6 @@ class Loader:
             img, orig_labels = self.load_val_img_and_label(img_no)
             img, labels = self._preprocess_img_and_labels(img, orig_labels, flip=flip)
             if flip:
-                print("flippin")
                 orig_labels = self.flip_labels(orig_labels)
             x.append(img)
             y.append(labels)

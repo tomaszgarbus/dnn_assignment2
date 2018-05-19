@@ -188,13 +188,12 @@ class UNet:
         full_size_acc = 0.
         for i in range(self.mb_size):
             orig_size_preds = Loader.resize_labels(preds[i].astype(np.int8), orig_size_labels[i].shape[::-1])
-            Loader.show_image_or_labels(preds[i])
-            Loader.show_image_or_labels(orig_size_preds)
-            Loader.show_image_or_labels(orig_size_labels[i])
+            # Loader.show_image_or_labels(preds[i])
+            # Loader.show_image_or_labels(orig_size_preds)
+            # Loader.show_image_or_labels(orig_size_labels[i])
             acc = np.mean((np.equal(orig_size_preds, orig_size_labels[i])).astype(np.float32))
             full_size_acc += acc
         full_size_acc /= self.mb_size
-        print(results[1], full_size_acc)
         return [results[0], results[1], full_size_acc]
 
     def train(self):
@@ -203,7 +202,6 @@ class UNet:
             loss, acc, _, preds, labels = self._train_on_batch()
             accs.append(acc)
             if epoch_no % 100 == 0:
-                self.validate()
                 self.logger.info('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'.
                                  format(time.ctime(), epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
             if epoch_no % 1000 == 0 or epoch_no == self.nb_epochs - 1:
