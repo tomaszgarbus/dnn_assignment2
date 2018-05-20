@@ -12,4 +12,6 @@ SYLVESTER = False
 
 MB_SIZE = 4
 
+MAX_CROP_MARGIN = 0.25
+
 SAVED_MODEL_PATH = 'tmp/model.ckpt'

@@ -12,9 +12,10 @@ from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, 
 FilterDesc = Tuple[int, List[int], int]
 
 
-# TODO: data augmentation (horizontal flips: done)
+# TODO: data augmentation (horizontal flips, crops: done, rotations: done)
+# TODO: augment data for testing (when model is ready), now it would be too slow
 # TODO: resizing back to original resolution after making predictions (done for validation)
-# TODO: use tf.data instead
+# TODO: generate outputs for test/
 class UNet:
     loader = Loader()
     mb_size = MB_SIZE
@@ -56,7 +57,7 @@ class UNet:
 
         # Initialize logging.
         self.logger = logging.Logger("main_logger", level=logging.INFO)
-        log_file = 'log' + str(time.ctime()) + '.txt'
+        log_file = 'logs/log' + str(time.ctime()) + '.txt'
         formatter = logging.Formatter(
             fmt='{message}',
             style='{'
