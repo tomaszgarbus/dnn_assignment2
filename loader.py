@@ -109,7 +109,7 @@ class Loader:
         x = []
         y = []
         for img_no in range(size):
-            img, labels, name = self.load_random_img_and_label(force_full_size=False)
+            img, labels, name = self.load_random_img_and_label()
             img, labels = self._preprocess_img_and_labels(img, labels)
             x.append(img)
             y.append(labels)

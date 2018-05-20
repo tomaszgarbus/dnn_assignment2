@@ -12,10 +12,9 @@ from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, 
 FilterDesc = Tuple[int, List[int], int]
 
 
-# TODO: check if PIL uses GPU
 # TODO: data augmentation (horizontal flips: done)
-# TODO: checkpoints
-# TODO: resizing back to original resolution after making predictions
+# TODO: resizing back to original resolution after making predictions (done for validation)
+# TODO: use tf.data instead
 class UNet:
     loader = Loader()
     mb_size = MB_SIZE
