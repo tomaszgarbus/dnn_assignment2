@@ -19,7 +19,7 @@ FilterDesc = Tuple[int, List[int], int]
 class UNet:
     loader = Loader()
     mb_size = MB_SIZE
-    learning_rate = 0.3
+    learning_rate = 0.6
     lr_decay = -1
     nb_epochs = 100000
     input_size = INPUT_SIZE
@@ -198,20 +198,23 @@ class UNet:
 
     def train(self):
         accs = []
-        for epoch_no in range(self.nb_epochs):
-            loss, acc, _, preds, labels = self._train_on_batch()
-            accs.append(acc)
-            if epoch_no % 100 == 0:
-                self.logger.info('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'.
-                                 format(time.ctime(), epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
-            if epoch_no % 1000 == 0 or epoch_no == self.nb_epochs - 1:
-                net.loader.show_image_or_labels(preds[0])
-                net.loader.show_image_or_labels(labels[0])
-                self.saver.save(self.sess, SAVED_MODEL_PATH)
-            if epoch_no and epoch_no % (18000 // self.mb_size) == 0:
-                self.validate()
-            if epoch_no and epoch_no % self.lr_decay == 0:
-                self.learning_rate /= 2.
+        try:
+            for epoch_no in range(self.nb_epochs):
+                loss, acc, _, preds, labels = self._train_on_batch()
+                accs.append(acc)
+                if epoch_no % 100 == 0:
+                    self.logger.info('{0}: epoch {1}/{2}: loss: {3}, acc: {4}, mean_acc: {5}'.
+                                     format(time.ctime(), epoch_no, self.nb_epochs, loss, acc, np.mean(accs[-1000:])))
+                if epoch_no % 1000 == 0 or epoch_no == self.nb_epochs - 1:
+                    net.loader.show_image_or_labels(preds[0])
+                    net.loader.show_image_or_labels(labels[0])
+                    self.saver.save(self.sess, SAVED_MODEL_PATH)
+                if epoch_no and epoch_no % (18000 // self.mb_size) == 0:
+                    self.validate()
+                if epoch_no and epoch_no % self.lr_decay == 0:
+                    self.learning_rate /= 2.
+        except KeyboardInterrupt:
+            self.saver.save(self.sess, SAVED_MODEL_PATH)
 
     def validate(self):
         accs = []
