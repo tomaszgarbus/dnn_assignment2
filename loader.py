@@ -47,13 +47,13 @@ class Loader:
     @staticmethod
     def resize_img(img, size=INPUT_SIZE):
         tmp = Image.fromarray(img, mode='RGB')
-        tmp = tmp.resize(size, resample=Image.NEAREST)
+        tmp = tmp.resize(size[::-1], resample=Image.NEAREST)
         return np.array(tmp)
 
     @staticmethod
     def resize_labels(labels, size=INPUT_SIZE):
         tmp = Image.fromarray(labels, mode='L')
-        tmp = tmp.resize(size, resample=Image.NEAREST)
+        tmp = tmp.resize(size[::-1], resample=Image.NEAREST)
         return np.array(tmp)
 
     def load_random_img_and_label(self, force_full_size=True):
