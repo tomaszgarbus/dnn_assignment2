@@ -90,14 +90,11 @@ class Loader:
     @staticmethod
     def transform_crop(img: Image,
                        labels: Image,
-                       margin_x: Optional[float] = None,
-                       margin_y: Optional[float] = None):
-        if margin_x is None:
-            margin_x = np.random.rand() * MAX_CROP_MARGIN
-        if margin_y is None:
-            margin_y = np.random.rand() * MAX_CROP_MARGIN
-        margin_x *= img.size[0]
-        margin_y *= img.size[1]
+                       margin: Optional[float] = None):
+        if margin is None:
+            margin = np.random.rand() * MAX_CROP_MARGIN
+        margin_x = margin * img.size[0]
+        margin_y = margin * img.size[1]
         img = img.crop((margin_x, margin_y,
                         img.size[0] - margin_x, img.size[1] - margin_y))
         labels = labels.crop((margin_x, margin_y,
@@ -111,7 +108,7 @@ class Loader:
         img = img.rotate(deg)
         labels = labels.rotate(deg)
         # TODO: smarter crop then margin = angle...
-        img, labels = Loader.transform_crop(img, labels, margin_x=deg / 100, margin_y=deg / 100)
+        img, labels = Loader.transform_crop(img, labels, margin=deg / 100)
         return img, labels
 
     def _transform_img_and_labels(self, img, labels,
@@ -142,12 +139,16 @@ class Loader:
         labels = self.labels_to_one_hot(labels)
         return img, labels
 
-    def prepare_batch(self, size):
+    def prepare_batch(self, size,
+                      flip: Optional[bool] = None,
+                      crop: Optional[bool] = None,
+                      rotate: Optional[bool] = None
+                      ):
         x = []
         y = []
         for img_no in range(size):
             img, labels, name = self.load_random_img_and_label()
-            img, labels = self._transform_img_and_labels(img, labels)
+            img, labels = self._transform_img_and_labels(img, labels, flip=flip, crop=crop, rotate=rotate)
             img, labels = self._resize_and_convert_img_and_labels(img, labels)
             x.append(img)
             y.append(labels)

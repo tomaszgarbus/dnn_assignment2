@@ -19,7 +19,7 @@ FilterDesc = Tuple[int, List[int], int]
 class UNet:
     loader = Loader()
     mb_size = MB_SIZE
-    learning_rate = 0.6
+    learning_rate = 0.3
     lr_decay = -1
     nb_epochs = 100000
     input_size = INPUT_SIZE
@@ -170,7 +170,7 @@ class UNet:
             tf.global_variables_initializer().run()
 
     def _train_on_batch(self):
-        batch_x, batch_y = self.loader.prepare_batch(self.mb_size)
+        batch_x, batch_y = self.loader.prepare_batch(self.mb_size, crop=False)
         results = self.sess.run([self.loss,
                                  self.accuracy,
                                  self.train_op,
@@ -187,7 +187,7 @@ class UNet:
         preds = results[2]
         full_size_acc = 0.
         for i in range(self.mb_size):
-            orig_size_preds = Loader.resize_labels(preds[i].astype(np.int8), orig_size_labels[i].shape[::-1])
+            orig_size_preds = Loader.resize_labels(preds[i].astype(np.int8), orig_size_labels[i].shape)
             # Loader.show_image_or_labels(preds[i])
             # Loader.show_image_or_labels(orig_size_preds)
             # Loader.show_image_or_labels(orig_size_labels[i])
