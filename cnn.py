@@ -7,19 +7,17 @@ import logging
 from PIL import Image
 
 from loader import Loader
-from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE, MB_SIZE, SAVED_MODEL_PATH
+from constants import INPUT_SIZE, DOWNCONV_FILTERS, UPCONV_FILTERS, NUM_LABELS, VAL_SIZE, MB_SIZE, SAVED_MODEL_PATH,\
+    POOL_SIZE
 
 FilterDesc = Tuple[int, List[int], int]
 
 
-# TODO: data augmentation (horizontal flips, crops: done, rotations: done)
-# TODO: augment data for testing (when model is ready), now it would be too slow
-# TODO: resizing back to original resolution after making predictions (done for validation)
 # TODO: generate outputs for test/
 class UNet:
     loader = Loader()
     mb_size = MB_SIZE
-    learning_rate = 0.3
+    learning_rate = 0.5
     lr_decay = -1
     nb_epochs = 100000
     input_size = INPUT_SIZE
@@ -98,8 +96,8 @@ class UNet:
             self.downconv_layers.append(downconv_layer)
             # Downpooling layer
             downpooling_layer = tf.layers.max_pooling2d(signal,
-                                                        pool_size=[2, 2],
-                                                        strides=[2, 2],
+                                                        pool_size=[POOL_SIZE, POOL_SIZE],
+                                                        strides=[POOL_SIZE, POOL_SIZE],
                                                         padding='same')
             self.downpool_layers.append(downpooling_layer)
             signal = downpooling_layer
@@ -134,7 +132,7 @@ class UNet:
             # Upsampling layer
             if layer_no < len(self.downconv_layers):
                 cur_shape = tuple(map(int, upconv_layer.get_shape()))
-                new_shape = (cur_shape[0], cur_shape[1] * 2, cur_shape[2] * 2, cur_shape[3])
+                new_shape = (cur_shape[0], cur_shape[1] * POOL_SIZE, cur_shape[2] * POOL_SIZE, cur_shape[3])
                 self.logger.info((cur_shape, new_shape))
                 uppooling_layer = tf.image.resize_nearest_neighbor(images=upconv_layer,
                                                                    size=new_shape[1:3])
@@ -170,7 +168,7 @@ class UNet:
             tf.global_variables_initializer().run()
 
     def _train_on_batch(self):
-        batch_x, batch_y = self.loader.prepare_batch(self.mb_size, crop=False)
+        batch_x, batch_y = self.loader.prepare_batch(self.mb_size, crop=False, rotate=False)
         results = self.sess.run([self.loss,
                                  self.accuracy,
                                  self.train_op,
@@ -227,6 +225,8 @@ class UNet:
 
 if __name__ == '__main__':
     with tf.Session() as sess:
-        net = UNet(sess)
+        net = UNet(sess,
+                   learning_rate=0.1,
+                   lr_decay=4500)
         net.train()
     pass

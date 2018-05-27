@@ -104,7 +104,7 @@ class Loader:
     @staticmethod
     def transform_rotate(img: Image, labels: Image, deg: Optional[float] = None):
         if deg is None:
-            deg = np.random.rand() * 15.
+            deg = np.random.rand() * 5.
         img = img.rotate(deg)
         labels = labels.rotate(deg)
         # TODO: smarter crop then margin = angle...
